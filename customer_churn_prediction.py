@@ -15,6 +15,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
 # ------------------------------------------------------------
@@ -22,8 +24,11 @@ from sklearn.preprocessing import OneHotEncoder
 
 # Cell 4
 df=pd.read_csv("customer_churn_dataset-testing-master.csv")
-X = df.drop(['CustomerID', 'Churn'], axis=1)
+df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
+df['TotalCharges'] = df['TotalCharges'].fillna(df['TotalCharges'].median())
+X = df.drop(['customerID', 'Churn'], axis=1)
 y = df['Churn']
+
 
 
 # ------------------------------------------------------------
@@ -31,7 +36,8 @@ y = df['Churn']
 
 # Cell 6
 df.info()
-
+df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
+df['TotalCharges'] = df['TotalCharges'].fillna(df['TotalCharges'].median())
 
 # Cell 7
 df.describe()
@@ -67,7 +73,7 @@ print(numerical_columns)
 
 
 # Cell 15
-ct=ColumnTransformer(transformers=[('encoder',OneHotEncoder(),categorical_columns)],remainder='passthrough')
+ct = ColumnTransformer(transformers=[('encoder', OneHotEncoder(handle_unknown='ignore'), categorical_columns)], remainder='passthrough')
 X_train = ct.fit_transform(X_train)
 X_test = ct.transform(X_test)
 
@@ -130,3 +136,42 @@ print(f'Accuracy: {accuracy:.2%}')
 
 # Cell 30
 print(classification_report(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
+# ------------------------------------------------------------
+# Compare Logistic Regression and Random Forest
+
+# Evaluate the existing Logistic Regression model
+lr_accuracy = accuracy_score(y_test, y_pred)
+lr_precision = precision_score(y_test, y_pred, average="weighted", zero_division=0)
+lr_recall = recall_score(y_test, y_pred, average="weighted", zero_division=0)
+lr_f1 = f1_score(y_test, y_pred, average="weighted", zero_division=0)
+
+# Train a Random Forest model on the same training data
+rf_classifier = RandomForestClassifier(
+    n_estimators=100,
+    random_state=42,
+    n_jobs=-1
+)
+rf_classifier.fit(X_train, y_train)
+
+# Predict using Random Forest
+rf_pred = rf_classifier.predict(X_test)
+
+# Evaluate Random Forest
+rf_accuracy = accuracy_score(y_test, rf_pred)
+rf_precision = precision_score(y_test, rf_pred, average="weighted", zero_division=0)
+rf_recall = recall_score(y_test, rf_pred, average="weighted", zero_division=0)
+rf_f1 = f1_score(y_test, rf_pred, average="weighted", zero_division=0)
+
+# Display comparison
+comparison = pd.DataFrame({
+    "Model": ["Logistic Regression", "Random Forest"],
+    "Accuracy": [lr_accuracy, rf_accuracy],
+    "Precision (weighted)": [lr_precision, rf_precision],
+    "Recall (weighted)": [lr_recall, rf_recall],
+    "F1 Score (weighted)": [lr_f1, rf_f1]
+})
+
+print("\nModel Performance Comparison")
+print(comparison.round(4).to_string(index=False))
